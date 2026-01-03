@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Weather Station</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #fff;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            animation: fadeIn 1s ease-in;
+        }
+
+        .header h1 {
+            font-size: 3em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .last-update {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+
+        .dashboard {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            animation: slideUp 0.6s ease-out;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
+        }
+
+        .card-icon {
+            font-size: 3em;
+            margin-bottom: 15px;
+            display: block;
+        }
+
+        .card-label {
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            opacity: 0.8;
+            margin-bottom: 10px;
+        }
+
+        .card-value {
+            font-size: 3.5em;
+            font-weight: bold;
+            line-height: 1;
+            margin-bottom: 10px;
+        }
+
+        .card-unit {
+            font-size: 1.2em;
+            opacity: 0.7;
+        }
+
+        .card-secondary {
+            font-size: 0.95em;
+            opacity: 0.8;
+            margin-top: 10px;
+        }
+
+        .wind-direction {
+            display: inline-block;
+            width: 60px;
+            height: 60px;
+            margin-top: 15px;
+            border: 3px solid rgba(255,255,255,0.5);
+            border-radius: 50%;
+            position: relative;
+        }
+
+        .wind-arrow {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 3px;
+            height: 25px;
+            background: #fff;
+            transform-origin: center bottom;
+            transition: transform 0.5s ease;
+        }
+
+        .wind-arrow::after {
+            content: '';
+            position: absolute;
+            top: -5px;
+            left: -3px;
+            width: 0;
+            height: 0;
+            border-left: 5px solid transparent;
+            border-right: 5px solid transparent;
+            border-bottom: 8px solid #fff;
+        }
+
+        .status-indicator {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            background: rgba(255,255,255,0.2);
+            backdrop-filter: blur(10px);
+            border-radius: 30px;
+            font-size: 0.85em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #4ade80;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        @media (max-width: 768px) {
+            .header h1 { font-size: 2em; }
+            .card-value { font-size: 2.5em; }
+            .dashboard { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="status-indicator">
+        <div class="status-dot"></div>
+        <span>Live</span>
+    </div>
+
+    <div class="header">
+        <h1>🌤️ Weather Station</h1>
+        <div class="last-update">Last updated: <span id="lastUpdate">--</span></div>
+    </div>
+
+    <div class="dashboard">
+        <div class="card">
+            <span class="card-icon">🧭</span>
+            <div class="card-label">Wind Direction</div>
+            <div class="card-value"><span id="windDir">--</span>°</div>
+            <div class="card-secondary"><span id="windDirCompass">--</span></div>
+            <div class="wind-direction">
+                <div class="wind-arrow" id="windArrow"></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <span class="card-icon">💨</span>
+            <div class="card-label">Wind Speed</div>
+            <div class="card-value"><span id="windSpeed">--</span></div>
+            <div class="card-unit">m/s</div>
+            <div class="card-secondary"><span id="windSpeedKmh">--</span> km/h</div>
+        </div>
+
+        <div class="card">
+            <span class="card-icon">🌪️</span>
+            <div class="card-label">Wind Gust</div>
+            <div class="card-value"><span id="windGust">--</span></div>
+            <div class="card-unit">m/s</div>
+            <div class="card-secondary"><span id="windGustKmh">--</span> km/h</div>
+        </div>
+
+        <div class="card">
+            <span class="card-icon">🌡️</span>
+            <div class="card-label">Temperature</div>
+            <div class="card-value"><span id="temp">--</span></div>
+            <div class="card-unit">°C</div>
+            <div class="card-secondary"><span id="tempF">--</span> °F</div>
+        </div>
+
+        <div class="card">
+            <span class="card-icon">☀️</span>
+            <div class="card-label">Light Intensity</div>
+            <div class="card-value"><span id="light">--</span></div>
+            <div class="card-unit">W/m²</div>
+            <div class="card-secondary">~<span id="lightLux">--</span> lux</div>
+        </div>
+
+        <div class="card">
+            <span class="card-icon">🌧️</span>
+            <div class="card-label">Rainfall</div>
+            <div class="card-value"><span id="rainfall">--</span></div>
+            <div class="card-unit">mm</div>
+            <div class="card-secondary"><span id="rainfallInches">--</span> inches</div>
+        </div>
+    </div>
+
+    <script>
+        // This would normally fetch from your server
+        // For demo, simulating data. Replace with actual API call.
+        
+        function getCompassDirection(degrees) {
+            if (degrees < 23 || degrees >= 338) return "N";
+            else if (degrees < 68) return "NE";
+            else if (degrees < 113) return "E";
+            else if (degrees < 158) return "SE";
+            else if (degrees < 203) return "S";
+            else if (degrees < 248) return "SW";
+            else if (degrees < 293) return "W";
+            else return "NW";
+        }
+
+        async function fetchWeatherData() {
+            try {
+                // Replace this URL with your actual API endpoint
+                const response = await fetch('/api/weather');
+                const data = await response.json();
+                updateDashboard(data);
+            } catch (error) {
+                console.error('Error fetching weather data:', error);
+                // For demo purposes, using sample data
+                setTimeout(() => {
+                    updateDashboard({
+                        windDir: 180,
+                        windSpeed: 3.5,
+                        windGust: 5.2,
+                        temp: 18.5,
+                        light: 45,
+                        rainfall: 2.3
+                    });
+                }, 1000);
+            }
+        }
+
+        function updateDashboard(data) {
+            document.getElementById('windDir').textContent = data.windDir;
+            document.getElementById('windDirCompass').textContent = getCompassDirection(data.windDir);
+            document.getElementById('windArrow').style.transform = `translate(-50%, -100%) rotate(${data.windDir}deg)`;
+            
+            document.getElementById('windSpeed').textContent = data.windSpeed.toFixed(1);
+            document.getElementById('windSpeedKmh').textContent = (data.windSpeed * 3.6).toFixed(1);
+            
+            document.getElementById('windGust').textContent = data.windGust.toFixed(1);
+            document.getElementById('windGustKmh').textContent = (data.windGust * 3.6).toFixed(1);
+            
+            document.getElementById('temp').textContent = data.temp.toFixed(1);
+            document.getElementById('tempF').textContent = ((data.temp * 9/5) + 32).toFixed(1);
+            
+            document.getElementById('light').textContent = data.light;
+            document.getElementById('lightLux').textContent = Math.round(data.light * 126.7);
+            
+            document.getElementById('rainfall').textContent = data.rainfall.toFixed(1);
+            document.getElementById('rainfallInches').textContent = (data.rainfall / 25.4).toFixed(2);
+            
+            document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
+        }
+
+        // Fetch data every 10 seconds
+        fetchWeatherData();
+        setInterval(fetchWeatherData, 10000);
+    </script>
+</body>
+</html>
