@@ -147,6 +147,32 @@
             animation: pulse 2s infinite;
         }
 
+        .status-dot.offline {
+            background: #ef4444;
+        }
+
+        .setup-banner {
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            border-radius: 15px;
+            margin: 0 auto 30px;
+            max-width: 800px;
+            border: 2px dashed rgba(255, 255, 255, 0.3);
+        }
+
+        .setup-banner h2 {
+            margin-bottom: 10px;
+            font-size: 1.3em;
+        }
+
+        .setup-banner code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 2px 8px;
+            border-radius: 5px;
+            font-family: monospace;
+        }
+
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(-20px); }
             to { opacity: 1; transform: translateY(0); }
@@ -171,13 +197,19 @@
 </head>
 <body>
     <div class="status-indicator">
-        <div class="status-dot"></div>
-        <span>Live</span>
+        <div class="status-dot" id="statusDot"></div>
+        <span id="statusText">Connecting...</span>
     </div>
 
     <div class="header">
         <h1>🌤️ Weather Station</h1>
         <div class="last-update">Last updated: <span id="lastUpdate">--</span></div>
+    </div>
+
+    <div class="setup-banner" id="setupBanner">
+        <h2>⚙️ Setup Required</h2>
+        <p>Replace <code>YOUR_USERNAME</code> on line 232 with your Adafruit IO username.</p>
+        <p>Find it by clicking the yellow key icon (🔑) in Adafruit IO.</p>
     </div>
 
     <div class="dashboard">
@@ -233,8 +265,17 @@
     </div>
 
     <script>
-        // This would normally fetch from your server
-        // For demo, simulating data. Replace with actual API call.
+        // **CHANGE THIS TO YOUR ADAFRUIT IO USERNAME**
+        const AIO_USERNAME = 'YOUR_USERNAME';  // Replace with your username
+        
+        const feeds = {
+            windDir: 'wind-direction',
+            windSpeed: 'wind-speed',
+            windGust: 'wind-gust',
+            temp: 'temperature',
+            light: 'light',
+            rainfall: 'rainfall'
+        };
         
         function getCompassDirection(degrees) {
             if (degrees < 23 || degrees >= 338) return "N";
@@ -247,30 +288,47 @@
             else return "NW";
         }
 
+        async function fetchFeedData(feedName) {
+            try {
+                const response = await fetch(`https://io.adafruit.com/api/v2/${AIO_USERNAME}/feeds/${feedName}/data/last`);
+                const data = await response.json();
+                return parseFloat(data.value) || 0;
+            } catch (error) {
+                console.error(`Error fetching ${feedName}:`, error);
+                return 0;
+            }
+        }
+
         async function fetchWeatherData() {
             try {
-                // Replace this URL with your actual API endpoint
-                const response = await fetch('/api/weather');
-                const data = await response.json();
+                // Fetch all feeds
+                const data = {
+                    windDir: await fetchFeedData(feeds.windDir),
+                    windSpeed: await fetchFeedData(feeds.windSpeed),
+                    windGust: await fetchFeedData(feeds.windGust),
+                    temp: await fetchFeedData(feeds.temp),
+                    light: await fetchFeedData(feeds.light),
+                    rainfall: await fetchFeedData(feeds.rainfall)
+                };
+                
+                // Hide setup banner once we get data
+                document.getElementById('setupBanner').style.display = 'none';
+                
                 updateDashboard(data);
+                
+                // Update status
+                document.getElementById('statusDot').classList.remove('offline');
+                document.getElementById('statusText').textContent = 'Live';
+                
             } catch (error) {
                 console.error('Error fetching weather data:', error);
-                // For demo purposes, using sample data
-                setTimeout(() => {
-                    updateDashboard({
-                        windDir: 180,
-                        windSpeed: 3.5,
-                        windGust: 5.2,
-                        temp: 18.5,
-                        light: 45,
-                        rainfall: 2.3
-                    });
-                }, 1000);
+                document.getElementById('statusDot').classList.add('offline');
+                document.getElementById('statusText').textContent = 'Offline';
             }
         }
 
         function updateDashboard(data) {
-            document.getElementById('windDir').textContent = data.windDir;
+            document.getElementById('windDir').textContent = Math.round(data.windDir);
             document.getElementById('windDirCompass').textContent = getCompassDirection(data.windDir);
             document.getElementById('windArrow').style.transform = `translate(-50%, -100%) rotate(${data.windDir}deg)`;
             
@@ -283,7 +341,7 @@
             document.getElementById('temp').textContent = data.temp.toFixed(1);
             document.getElementById('tempF').textContent = ((data.temp * 9/5) + 32).toFixed(1);
             
-            document.getElementById('light').textContent = data.light;
+            document.getElementById('light').textContent = Math.round(data.light);
             document.getElementById('lightLux').textContent = Math.round(data.light * 126.7);
             
             document.getElementById('rainfall').textContent = data.rainfall.toFixed(1);
@@ -292,9 +350,15 @@
             document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
         }
 
-        // Fetch data every 10 seconds
-        fetchWeatherData();
-        setInterval(fetchWeatherData, 10000);
+        // Check if username is still default
+        if (AIO_USERNAME === 'YOUR_USERNAME') {
+            document.getElementById('statusText').textContent = 'Setup Required';
+            document.getElementById('statusDot').classList.add('offline');
+        } else {
+            // Fetch data immediately and every 30 seconds
+            fetchWeatherData();
+            setInterval(fetchWeatherData, 30000);
+        }
     </script>
 </body>
 </html>
