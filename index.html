@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Live Weather Station</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         * {
             margin: 0;
@@ -21,27 +22,45 @@
 
         .header {
             text-align: center;
-            margin-bottom: 40px;
+            margin-bottom: 30px;
             animation: fadeIn 1s ease-in;
         }
 
         .header h1 {
             font-size: 3em;
-            margin-bottom: 10px;
+            margin-bottom: 5px;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .location-time {
+            font-size: 1.1em;
+            opacity: 0.9;
+            margin-bottom: 5px;
         }
 
         .last-update {
             font-size: 0.9em;
-            opacity: 0.9;
+            opacity: 0.8;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        .section-title {
+            font-size: 1.5em;
+            margin: 30px 0 20px 0;
+            text-align: center;
+            text-transform: uppercase;
+            letter-spacing: 2px;
         }
 
         .dashboard {
-            max-width: 1400px;
-            margin: 0 auto;
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
             gap: 25px;
+            margin-bottom: 40px;
         }
 
         .card {
@@ -125,6 +144,53 @@
             border-bottom: 8px solid #fff;
         }
 
+        .chart-container {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            margin-bottom: 25px;
+        }
+
+        .chart-title {
+            font-size: 1.3em;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .chart-tabs {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .chart-tab {
+            padding: 10px 20px;
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            border-radius: 10px;
+            color: #fff;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: all 0.3s ease;
+        }
+
+        .chart-tab.active {
+            background: rgba(255, 255, 255, 0.4);
+            font-weight: bold;
+        }
+
+        .chart-tab:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        canvas {
+            max-height: 300px;
+        }
+
         .status-indicator {
             position: fixed;
             top: 20px;
@@ -137,6 +203,7 @@
             display: flex;
             align-items: center;
             gap: 10px;
+            z-index: 1000;
         }
 
         .status-dot {
@@ -149,28 +216,6 @@
 
         .status-dot.offline {
             background: #ef4444;
-        }
-
-        .setup-banner {
-            background: rgba(255, 255, 255, 0.2);
-            backdrop-filter: blur(10px);
-            padding: 20px;
-            border-radius: 15px;
-            margin: 0 auto 30px;
-            max-width: 800px;
-            border: 2px dashed rgba(255, 255, 255, 0.3);
-        }
-
-        .setup-banner h2 {
-            margin-bottom: 10px;
-            font-size: 1.3em;
-        }
-
-        .setup-banner code {
-            background: rgba(0, 0, 0, 0.3);
-            padding: 2px 8px;
-            border-radius: 5px;
-            font-family: monospace;
         }
 
         @keyframes fadeIn {
@@ -201,82 +246,105 @@
         <span id="statusText">Connecting...</span>
     </div>
 
-    <div class="header">
-        <h1>🌤️ Weather Station</h1>
-        <div class="last-update">Last updated: <span id="lastUpdate">--</span></div>
-    </div>
+    <div class="container">
+        <div class="header">
+            <h1>🌤️ Weather Station</h1>
+            <div class="location-time">
+                <span id="location">Plymouth, England</span> • <span id="currentTime">--</span>
+            </div>
+            <div class="last-update">Last updated: <span id="lastUpdate">--</span></div>
+        </div>
 
-    <div class="setup-banner" id="setupBanner">
-        <h2>⚙️ Setup Required</h2>
-        <p>Replace <code>YOUR_USERNAME</code> on line 232 with your Adafruit IO username.</p>
-        <p>Find it by clicking the yellow key icon (🔑) in Adafruit IO.</p>
-    </div>
+        <div class="section-title">Current Conditions</div>
 
-    <div class="dashboard">
-        <div class="card">
-            <span class="card-icon">🧭</span>
-            <div class="card-label">Wind Direction</div>
-            <div class="card-value"><span id="windDir">--</span>°</div>
-            <div class="card-secondary"><span id="windDirCompass">--</span></div>
-            <div class="wind-direction">
-                <div class="wind-arrow" id="windArrow"></div>
+        <div class="dashboard">
+            <div class="card">
+                <span class="card-icon">🧭</span>
+                <div class="card-label">Wind Direction</div>
+                <div class="card-value"><span id="windDir">--</span>°</div>
+                <div class="card-secondary"><span id="windDirCompass">--</span></div>
+                <div class="wind-direction">
+                    <div class="wind-arrow" id="windArrow"></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <span class="card-icon">💨</span>
+                <div class="card-label">Wind Speed</div>
+                <div class="card-value"><span id="windSpeed">--</span></div>
+                <div class="card-unit">m/s</div>
+                <div class="card-secondary"><span id="windSpeedKmh">--</span> km/h</div>
+            </div>
+
+            <div class="card">
+                <span class="card-icon">🌪️</span>
+                <div class="card-label">Wind Gust</div>
+                <div class="card-value"><span id="windGust">--</span></div>
+                <div class="card-unit">m/s</div>
+                <div class="card-secondary"><span id="windGustKmh">--</span> km/h</div>
+            </div>
+
+            <div class="card">
+                <span class="card-icon">🌡️</span>
+                <div class="card-label">Temperature</div>
+                <div class="card-value"><span id="temp">--</span></div>
+                <div class="card-unit">°C</div>
+                <div class="card-secondary"><span id="tempF">--</span> °F</div>
+            </div>
+
+            <div class="card">
+                <span class="card-icon">☀️</span>
+                <div class="card-label">Light Intensity</div>
+                <div class="card-value"><span id="light">--</span></div>
+                <div class="card-unit">W/m²</div>
+                <div class="card-secondary">~<span id="lightLux">--</span> lux</div>
+            </div>
+
+            <div class="card">
+                <span class="card-icon">🌧️</span>
+                <div class="card-label">Rainfall</div>
+                <div class="card-value"><span id="rainfall">--</span></div>
+                <div class="card-unit">mm</div>
+                <div class="card-secondary"><span id="rainfallInches">--</span> inches</div>
             </div>
         </div>
 
-        <div class="card">
-            <span class="card-icon">💨</span>
-            <div class="card-label">Wind Speed</div>
-            <div class="card-value"><span id="windSpeed">--</span></div>
-            <div class="card-unit">m/s</div>
-            <div class="card-secondary"><span id="windSpeedKmh">--</span> km/h</div>
+        <div class="section-title">Historical Data</div>
+
+        <div class="chart-container">
+            <div class="chart-title">📈 Temperature History</div>
+            <div class="chart-tabs">
+                <button class="chart-tab active" onclick="switchTempChart('24h')">24 Hours</button>
+                <button class="chart-tab" onclick="switchTempChart('7d')">7 Days</button>
+            </div>
+            <canvas id="tempChart"></canvas>
         </div>
 
-        <div class="card">
-            <span class="card-icon">🌪️</span>
-            <div class="card-label">Wind Gust</div>
-            <div class="card-value"><span id="windGust">--</span></div>
-            <div class="card-unit">m/s</div>
-            <div class="card-secondary"><span id="windGustKmh">--</span> km/h</div>
+        <div class="chart-container">
+            <div class="chart-title">💨 Wind Speed History</div>
+            <div class="chart-tabs">
+                <button class="chart-tab active" onclick="switchWindChart('24h')">24 Hours</button>
+                <button class="chart-tab" onclick="switchWindChart('7d')">7 Days</button>
+            </div>
+            <canvas id="windChart"></canvas>
         </div>
 
-        <div class="card">
-            <span class="card-icon">🌡️</span>
-            <div class="card-label">Temperature</div>
-            <div class="card-value"><span id="temp">--</span></div>
-            <div class="card-unit">°C</div>
-            <div class="card-secondary"><span id="tempF">--</span> °F</div>
-        </div>
-
-        <div class="card">
-            <span class="card-icon">☀️</span>
-            <div class="card-label">Light Intensity</div>
-            <div class="card-value"><span id="light">--</span></div>
-            <div class="card-unit">W/m²</div>
-            <div class="card-secondary">~<span id="lightLux">--</span> lux</div>
-        </div>
-
-        <div class="card">
-            <span class="card-icon">🌧️</span>
-            <div class="card-label">Rainfall</div>
-            <div class="card-value"><span id="rainfall">--</span></div>
-            <div class="card-unit">mm</div>
-            <div class="card-secondary"><span id="rainfallInches">--</span> inches</div>
+        <div class="chart-container">
+            <div class="chart-title">☀️ Light Intensity History</div>
+            <div class="chart-tabs">
+                <button class="chart-tab active" onclick="switchLightChart('24h')">24 Hours</button>
+                <button class="chart-tab" onclick="switchLightChart('7d')">7 Days</button>
+            </div>
+            <canvas id="lightChart"></canvas>
         </div>
     </div>
 
     <script>
-        // **CHANGE THIS TO YOUR ADAFRUIT IO USERNAME**
-        const AIO_USERNAME = 'lizziecollingwood';  // Replace with your username
+        const AIO_USERNAME = 'lizziecollingwood';
         
-        const feeds = {
-            windDir: 'wind-direction',
-            windSpeed: 'wind-speed',
-            windGust: 'wind-gust',
-            temp: 'temeprature',  // Match your Adafruit IO spelling
-            light: 'light',
-            rainfall: 'rainfall'
-        };
-        
+        let tempChart, windChart, lightChart;
+        let tempPeriod = '24h', windPeriod = '24h', lightPeriod = '24h';
+
         function getCompassDirection(degrees) {
             if (degrees < 23 || degrees >= 338) return "N";
             else if (degrees < 68) return "NE";
@@ -288,28 +356,154 @@
             else return "NW";
         }
 
+        function updateTime() {
+            const now = new Date();
+            const options = { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            };
+            document.getElementById('currentTime').textContent = now.toLocaleString('en-GB', options);
+        }
+
+        async function fetchHistoricalData(feedKey, hours) {
+            try {
+                const startTime = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
+                const url = `https://io.adafruit.com/api/v2/${AIO_USERNAME}/feeds/${feedKey}/data?start_time=${startTime}`;
+                
+                const response = await fetch(url);
+                if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
+                
+                const data = await response.json();
+                return data.map(item => ({
+                    time: new Date(item.created_at),
+                    value: parseFloat(item.value)
+                })).reverse();
+            } catch (error) {
+                console.error(`Error fetching historical data for ${feedKey}:`, error);
+                return [];
+            }
+        }
+
+        function createChart(ctx, label, data, color, unit = '') {
+            return new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.map(d => d.time.toLocaleTimeString('en-GB', { 
+                        month: 'short', 
+                        day: 'numeric', 
+                        hour: '2-digit', 
+                        minute: '2-digit' 
+                    })),
+                    datasets: [{
+                        label: label,
+                        data: data.map(d => d.value),
+                        borderColor: color,
+                        backgroundColor: color + '40',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            labels: { color: '#fff' }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            ticks: { 
+                                color: '#fff',
+                                maxRotation: 45,
+                                minRotation: 45
+                            },
+                            grid: { color: 'rgba(255,255,255,0.1)' }
+                        },
+                        y: {
+                            ticks: { 
+                                color: '#fff',
+                                callback: function(value) {
+                                    return value + unit;
+                                }
+                            },
+                            grid: { color: 'rgba(255,255,255,0.1)' }
+                        }
+                    }
+                }
+            });
+        }
+
+        async function updateTempChart(period) {
+            const hours = period === '24h' ? 24 : 168;
+            const data = await fetchHistoricalData('temperature', hours);
+            
+            if (tempChart) tempChart.destroy();
+            const ctx = document.getElementById('tempChart').getContext('2d');
+            tempChart = createChart(ctx, 'Temperature', data, '#ff6384', '°C');
+        }
+
+        async function updateWindChart(period) {
+            const hours = period === '24h' ? 24 : 168;
+            const data = await fetchHistoricalData('wind-speed', hours);
+            
+            if (windChart) windChart.destroy();
+            const ctx = document.getElementById('windChart').getContext('2d');
+            windChart = createChart(ctx, 'Wind Speed', data, '#36a2eb', ' m/s');
+        }
+
+        async function updateLightChart(period) {
+            const hours = period === '24h' ? 24 : 168;
+            const data = await fetchHistoricalData('light', hours);
+            
+            if (lightChart) lightChart.destroy();
+            const ctx = document.getElementById('lightChart').getContext('2d');
+            lightChart = createChart(ctx, 'Light Intensity', data, '#ffce56', ' W/m²');
+        }
+
+        function switchTempChart(period) {
+            tempPeriod = period;
+            document.querySelectorAll('.chart-container:nth-of-type(1) .chart-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            updateTempChart(period);
+        }
+
+        function switchWindChart(period) {
+            windPeriod = period;
+            document.querySelectorAll('.chart-container:nth-of-type(2) .chart-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            updateWindChart(period);
+        }
+
+        function switchLightChart(period) {
+            lightPeriod = period;
+            document.querySelectorAll('.chart-container:nth-of-type(3) .chart-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            updateLightChart(period);
+        }
+
         async function fetchWeatherData() {
             try {
-                console.log('Fetching weather data from Adafruit IO...'); // Debug log
-                
-                // Fetch all feeds at once (more reliable)
                 const feedsUrl = `https://io.adafruit.com/api/v2/${AIO_USERNAME}/feeds`;
-                console.log('Feeds URL:', feedsUrl);
-                
                 const response = await fetch(feedsUrl);
-                if (!response.ok) {
-                    throw new Error(`HTTP error: ${response.status}`);
-                }
+                
+                if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
                 
                 const allFeeds = await response.json();
-                console.log('All feeds:', allFeeds);
-                
-                // Extract values from each feed
                 const data = {};
                 
                 for (const feed of allFeeds) {
-                    console.log(`Feed: ${feed.key}, Last Value: ${feed.last_value}`);
-                    
                     if (feed.key === 'wind-direction') data.windDir = parseFloat(feed.last_value) || 0;
                     if (feed.key === 'wind-speed') data.windSpeed = parseFloat(feed.last_value) || 0;
                     if (feed.key === 'wind-gust') data.windGust = parseFloat(feed.last_value) || 0;
@@ -318,26 +512,17 @@
                     if (feed.key === 'rainfall') data.rainfall = parseFloat(feed.last_value) || 0;
                 }
                 
-                console.log('Parsed data:', data);
-                
-                // Check if we got any data
-                if (Object.keys(data).length === 0) {
-                    throw new Error('No matching feeds found');
-                }
-                
-                // Hide setup banner once we get data
-                document.getElementById('setupBanner').style.display = 'none';
+                if (Object.keys(data).length === 0) throw new Error('No matching feeds found');
                 
                 updateDashboard(data);
                 
-                // Update status
                 document.getElementById('statusDot').classList.remove('offline');
                 document.getElementById('statusText').textContent = 'Live';
                 
             } catch (error) {
                 console.error('Error fetching weather data:', error);
                 document.getElementById('statusDot').classList.add('offline');
-                document.getElementById('statusText').textContent = 'Offline - Check console';
+                document.getElementById('statusText').textContent = 'Offline';
             }
         }
 
@@ -364,10 +549,23 @@
             document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
         }
 
-        // Fetch data immediately and every 30 seconds
+        // Initialize
+        updateTime();
+        setInterval(updateTime, 1000);
+        
         fetchWeatherData();
         setInterval(fetchWeatherData, 30000);
         
+        updateTempChart('24h');
+        updateWindChart('24h');
+        updateLightChart('24h');
+        
+        // Refresh charts every 5 minutes
+        setInterval(() => {
+            updateTempChart(tempPeriod);
+            updateWindChart(windPeriod);
+            updateLightChart(lightPeriod);
+        }, 300000);
     </script>
 </body>
 </html>
