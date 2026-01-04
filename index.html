@@ -272,7 +272,7 @@
             windDir: 'wind-direction',
             windSpeed: 'wind-speed',
             windGust: 'wind-gust',
-            temp: 'temperature',
+            temp: 'temeprature',  // Match your Adafruit IO spelling
             light: 'light',
             rainfall: 'rainfall'
         };
@@ -288,54 +288,42 @@
             else return "NW";
         }
 
-        async function fetchFeedData(feedName) {
-            try {
-                const url = `https://io.adafruit.com/api/v2/${AIO_USERNAME}/feeds/${feedName}/data/last`;
-                console.log('Fetching:', url); // Debug log
-                
-                const response = await fetch(url);
-                
-                if (!response.ok) {
-                    console.error(`HTTP error for ${feedName}: ${response.status}`);
-                    return null;
-                }
-                
-                const data = await response.json();
-                console.log(`${feedName}:`, data.value); // Debug log
-                return data.value;
-            } catch (error) {
-                console.error(`Error fetching ${feedName}:`, error);
-                return null;
-            }
-        }
-
         async function fetchWeatherData() {
             try {
-                console.log('Fetching all weather data...'); // Debug log
+                console.log('Fetching weather data from Adafruit IO...'); // Debug log
                 
-                // Fetch all feeds
-                const windDir = await fetchFeedData(feeds.windDir);
-                const windSpeed = await fetchFeedData(feeds.windSpeed);
-                const windGust = await fetchFeedData(feeds.windGust);
-                const temp = await fetchFeedData(feeds.temp);
-                const light = await fetchFeedData(feeds.light);
-                const rainfall = await fetchFeedData(feeds.rainfall);
+                // Fetch all feeds at once (more reliable)
+                const feedsUrl = `https://io.adafruit.com/api/v2/${AIO_USERNAME}/feeds`;
+                console.log('Feeds URL:', feedsUrl);
                 
-                // Check if we got valid data
-                if (windDir === null && windSpeed === null && temp === null) {
-                    throw new Error('No data received from Adafruit IO');
+                const response = await fetch(feedsUrl);
+                if (!response.ok) {
+                    throw new Error(`HTTP error: ${response.status}`);
                 }
                 
-                const data = {
-                    windDir: parseFloat(windDir) || 0,
-                    windSpeed: parseFloat(windSpeed) || 0,
-                    windGust: parseFloat(windGust) || 0,
-                    temp: parseFloat(temp) || 0,
-                    light: parseFloat(light) || 0,
-                    rainfall: parseFloat(rainfall) || 0
-                };
+                const allFeeds = await response.json();
+                console.log('All feeds:', allFeeds);
                 
-                console.log('Parsed data:', data); // Debug log
+                // Extract values from each feed
+                const data = {};
+                
+                for (const feed of allFeeds) {
+                    console.log(`Feed: ${feed.key}, Last Value: ${feed.last_value}`);
+                    
+                    if (feed.key === 'wind-direction') data.windDir = parseFloat(feed.last_value) || 0;
+                    if (feed.key === 'wind-speed') data.windSpeed = parseFloat(feed.last_value) || 0;
+                    if (feed.key === 'wind-gust') data.windGust = parseFloat(feed.last_value) || 0;
+                    if (feed.key === 'temperature') data.temp = parseFloat(feed.last_value) || 0;
+                    if (feed.key === 'light') data.light = parseFloat(feed.last_value) || 0;
+                    if (feed.key === 'rainfall') data.rainfall = parseFloat(feed.last_value) || 0;
+                }
+                
+                console.log('Parsed data:', data);
+                
+                // Check if we got any data
+                if (Object.keys(data).length === 0) {
+                    throw new Error('No matching feeds found');
+                }
                 
                 // Hide setup banner once we get data
                 document.getElementById('setupBanner').style.display = 'none';
@@ -349,7 +337,7 @@
             } catch (error) {
                 console.error('Error fetching weather data:', error);
                 document.getElementById('statusDot').classList.add('offline');
-                document.getElementById('statusText').textContent = 'Offline';
+                document.getElementById('statusText').textContent = 'Offline - Check console';
             }
         }
 
