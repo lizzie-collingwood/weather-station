@@ -266,7 +266,7 @@
 
     <script>
         // **CHANGE THIS TO YOUR ADAFRUIT IO USERNAME**
-        const AIO_USERNAME = 'lizziecollingwood';  // Replace with your username
+        const AIO_USERNAME = 'YOUR_USERNAME';  // Replace with your username
         
         const feeds = {
             windDir: 'wind-direction',
@@ -290,26 +290,52 @@
 
         async function fetchFeedData(feedName) {
             try {
-                const response = await fetch(`https://io.adafruit.com/api/v2/${AIO_USERNAME}/feeds/${feedName}/data/last`);
+                const url = `https://io.adafruit.com/api/v2/${AIO_USERNAME}/feeds/${feedName}/data/last`;
+                console.log('Fetching:', url); // Debug log
+                
+                const response = await fetch(url);
+                
+                if (!response.ok) {
+                    console.error(`HTTP error for ${feedName}: ${response.status}`);
+                    return null;
+                }
+                
                 const data = await response.json();
-                return parseFloat(data.value) || 0;
+                console.log(`${feedName}:`, data.value); // Debug log
+                return data.value;
             } catch (error) {
                 console.error(`Error fetching ${feedName}:`, error);
-                return 0;
+                return null;
             }
         }
 
         async function fetchWeatherData() {
             try {
+                console.log('Fetching all weather data...'); // Debug log
+                
                 // Fetch all feeds
+                const windDir = await fetchFeedData(feeds.windDir);
+                const windSpeed = await fetchFeedData(feeds.windSpeed);
+                const windGust = await fetchFeedData(feeds.windGust);
+                const temp = await fetchFeedData(feeds.temp);
+                const light = await fetchFeedData(feeds.light);
+                const rainfall = await fetchFeedData(feeds.rainfall);
+                
+                // Check if we got valid data
+                if (windDir === null && windSpeed === null && temp === null) {
+                    throw new Error('No data received from Adafruit IO');
+                }
+                
                 const data = {
-                    windDir: await fetchFeedData(feeds.windDir),
-                    windSpeed: await fetchFeedData(feeds.windSpeed),
-                    windGust: await fetchFeedData(feeds.windGust),
-                    temp: await fetchFeedData(feeds.temp),
-                    light: await fetchFeedData(feeds.light),
-                    rainfall: await fetchFeedData(feeds.rainfall)
+                    windDir: parseFloat(windDir) || 0,
+                    windSpeed: parseFloat(windSpeed) || 0,
+                    windGust: parseFloat(windGust) || 0,
+                    temp: parseFloat(temp) || 0,
+                    light: parseFloat(light) || 0,
+                    rainfall: parseFloat(rainfall) || 0
                 };
+                
+                console.log('Parsed data:', data); // Debug log
                 
                 // Hide setup banner once we get data
                 document.getElementById('setupBanner').style.display = 'none';
