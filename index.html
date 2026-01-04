@@ -364,15 +364,10 @@
             document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
         }
 
-        // Check if username is still default
-        if (AIO_USERNAME === 'lizziecollingwood') {
-            document.getElementById('statusText').textContent = 'Setup Required';
-            document.getElementById('statusDot').classList.add('offline');
-        } else {
-            // Fetch data immediately and every 30 seconds
-            fetchWeatherData();
-            setInterval(fetchWeatherData, 30000);
-        }
+        // Fetch data immediately and every 30 seconds
+        fetchWeatherData();
+        setInterval(fetchWeatherData, 30000);
+        
     </script>
 </body>
 </html>
